@@ -1,13 +1,11 @@
 // Main application entry point for BrandShield.ai
-// This file defines routes, authentication wrappers, and global error handling.
+// Simplified – no authentication, direct flow to signup type selection and dashboard.
 
 import { Component } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { AuthProvider, homeForRole, useAuth } from './auth/AuthContext';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 // UI components and pages
 import AppShell from './components/AppShell';
-import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import BrandLibraryPage from './pages/BrandLibraryPage';
 import NewSubmissionPage from './pages/NewSubmissionPage';
@@ -27,7 +25,6 @@ import PendingApprovalPage from './pages/PendingApprovalPage';
 // Helper components
 // -----------------------------------------------------------------------------
 
-// Simple loading screen used throughout auth flows.
 function LoadingScreen({ label = 'Opening the Ink Vault…' }) {
   return (
     <div className="loading-screen" role="status" aria-live="polite">
@@ -37,44 +34,13 @@ function LoadingScreen({ label = 'Opening the Ink Vault…' }) {
   );
 }
 
-// In demo mode we bypass auth checks – still keep the wrapper for future use.
-function Protected({ children, roles }) {
-  // roles is optional; when provided you could add role‑based gating later.
+// Simple passthrough wrapper – retains layout without auth checks.
+function Protected({ children }) {
   return children;
 }
 
-// Route that only renders children when the user is *not* authenticated.
 function PublicAccountRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <LoadingScreen label="Checking your session…" />;
-  if (user) {
-    return <Navigate to={user.accountState === 'pending' ? '/pending' : homeForRole(user.role)} replace />;
-  }
   return children;
-}
-
-// Route used for the login page – redirects authenticated users.
-// Login route removed – login page no longer used
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return <LoadingScreen label="Checking your session…" />;
-  if (user) {
-    const destination =
-      location.state?.from && location.state.from !== '/login'
-        ? location.state.from
-        : homeForRole(user.role);
-    return <Navigate to={destination} replace />;
-  }
-  return <LoginPage />;
-}
-
-// Route for pending account approval.
-function PendingRoute() {
-  const { user, loading } = useAuth();
-  if (loading) return <LoadingScreen label="Checking your account…" />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.accountState !== 'pending') return <Navigate to={homeForRole(user.role)} replace />;
-  return <PendingApprovalPage />;
 }
 
 // 404 page
@@ -120,40 +86,40 @@ class AppErrorBoundary extends Component {
 }
 
 // -----------------------------------------------------------------------------
-// Application component – defines the routing tree.
+// Application component – routing tree without login/auth.
 // -----------------------------------------------------------------------------
 
 export default function App() {
   return (
     <AppErrorBoundary>
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
-            {/* Login route removed – login page no longer used */}
-            <Route path="/signup" element={<PublicAccountRoute><SignupTypePage /></PublicAccountRoute>} />
-            <Route path="/signup/details" element={<PublicAccountRoute><SignupDetailsPage /></PublicAccountRoute>} />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/forgot-password" element={<PublicAccountRoute><ForgotPasswordPage /></PublicAccountRoute>} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/pending" element={<PendingRoute />} />
+        <Routes>
+          {/* Entry point – choose account type */}
+          <Route path="/" element={<SignupTypePage />} />
+          <Route path="/signup/details" element={<SignupDetailsPage />} />
+          {/* Additional demo pages */}
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/pending" element={<PendingApprovalPage />} />
 
-            {/* Protected routes – wrapped in AppShell */}
-            <Route element={<Protected><AppShell /></Protected>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/new" element={<Protected roles={['creator', 'agency', 'admin']}><NewSubmissionPage /></Protected>} />
-              <Route path="/queue" element={<Protected roles={['reviewer', 'admin']}><ReviewerQueuePage /></Protected>} />
-              <Route path="/library" element={<Protected roles={['admin']}><BrandLibraryPage /></Protected>} />
-              <Route path="/insights" element={<Protected roles={['admin', 'reviewer', 'leadership']}><InsightsPage /></Protected>} />
-              <Route path="/settings" element={<Protected roles={['admin']}><SettingsPage /></Protected>} />
-              <Route path="/submissions/:id" element={<ReviewWorkspacePage />} />
-            </Route>
+          {/* Wrapped routes – use AppShell for layout */}
+          <Route element={<Protected><AppShell /></Protected>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/new" element={<Protected><NewSubmissionPage /></Protected>} />
+            <Route path="/queue" element={<Protected><ReviewerQueuePage /></Protected>} />
+            <Route path="/library" element={<Protected><BrandLibraryPage /></Protected>} />
+            <Route path="/insights" element={<Protected><InsightsPage /></Protected>} />
+            <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
+            <Route path="/submissions/:id" element={<ReviewWorkspacePage />} />
+          </Route>
 
-            {/* Catch‑all 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+          {/* Legal page */}
+          <Route path="/legal/:kind" element={<LegalPage />} />
+
+          {/* Catch‑all 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </AppErrorBoundary>
   );
